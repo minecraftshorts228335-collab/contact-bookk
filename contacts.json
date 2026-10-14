@@ -6,5 +6,13 @@
         ],
         "email": "anna@example.com",
         "category": "Друзья"
+    },
+    {
+        "name": "Али Тлст",
+        "phones": [
+            "7 228 228 4252"
+        ],
+        "email": "litolsty2281488@gmail.com",
+        "category": "коллега"
     }
 ]
