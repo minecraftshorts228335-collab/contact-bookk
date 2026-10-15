@@ -1,18 +1,26 @@
 [
     {
+        "type": "Contact",
         "name": "Анна Петрова",
         "phones": [
             "+7 900 123-45-67"
         ],
-        "email": "anna@example.com",
-        "category": "Друзья"
+        "email": "anna@example.com"
     },
     {
+        "type": "Contact",
         "name": "Евгений Пеннер",
         "phones": [
             "7 777 777 77 77"
         ],
-        "email": "ojdofgj234@gmail.com",
-        "category": "друг"
+        "email": "ojdofgj234@gmail.com"
+    },
+    {
+        "type": "Contact",
+        "name": "Алексей",
+        "phones": [
+            "7 700 67 5243"
+        ],
+        "email": "leshkaopaopa23232@gmail.com"
     }
 ]
