@@ -1,7 +1,7 @@
 import json
 import os
 
-# Хранение всех объектов в одном смешанном списке[cite: 7]
+# Один смешанный список контактов (Требование 7)[cite: 7, 14]
 contacts = []
 
 
@@ -10,22 +10,25 @@ contacts = []
 # ==========================================
 
 class Contact:
+    """Требование 9: Базовый класс содержит общие поля, matches() и validate()."""
     extra_fields = ()
     validation_rules = {}
 
     def __init__(self, name, phone, **kwargs):
+        """Единый унаследованный конструктор принимает общие и именованные поля типа[cite: 6, 9]."""
         self.name = name
         self.phone = phone
+        # Сохранение специфичных полей на основе extra_fields без переопределения конструктора в подклассах[cite: 6, 9]
         for field in self.extra_fields:
             setattr(self, field, kwargs.get(field))
 
     def matches(self, text):
-        """Общая логика поиска в базовом классе[cite: 4, 8]."""
+        """Общая логика поиска остается в базовом классе[cite: 9]."""
         text_lower = text.lower()
         return text_lower in self.name.lower() or text_lower in str(self.phone).lower()
 
     def validate(self):
-        """Общий алгоритм проверки данных без проверки типов[cite: 11]."""
+        """Основная логика проверки (validate) остается в базовом классе[cite: 9, 11]."""
         for field, rule in self.validation_rules.items():
             value = getattr(self, field, None)
             if not rule(value):
@@ -33,11 +36,11 @@ class Contact:
         return True
 
     def display(self):
-        """Полное представление[cite: 5, 6]."""
+        """Базовое полное представление."""
         return f"{self.name} - {self.phone}"
 
     def summary(self):
-        """Короткая строка для меню[cite: 10]."""
+        """Базовая короткая строка для меню."""
         return f"{self.name} ({self.phone})"
 
     def to_dict(self):
@@ -65,55 +68,67 @@ class Contact:
 
 
 class PersonalContact(Contact):
+    """Требование 3 и 9: Личный контакт."""
     extra_fields = ("birthday",)
     validation_rules = {
         "birthday": lambda val: isinstance(val, str) and len(val.strip()) > 0
     }
 
     def display(self):
+        """Требование 9: В подклассе переопределяется только display()."""
         return f"{self.name} - {self.phone} ДР: {self.birthday}"
 
     def summary(self):
+        """Требование 9, 10: В подклассе переопределяется только summary()."""
         return f"Личный: {self.name} (ДР: {self.birthday})"
 
 
 class WorkContact(Contact):
+    """Требование 3 и 9: Рабочий контакт."""
     extra_fields = ("company", "job_title")
     validation_rules = {
         "company": lambda val: isinstance(val, str) and len(val.strip()) > 0
     }
 
     def display(self):
+        """Требование 9: Переопределяется только display()."""
         return f"{self.name} - {self.phone} | {self.company}, {self.job_title}"
 
     def summary(self):
+        """Требование 9, 10: Переопределяется только summary()."""
         return f"Рабочий: {self.name} ({self.company})"
 
 
 class EmergencyContact(Contact):
+    """Требование 3 и 9: Экстренный контакт."""
     extra_fields = ("relationship", "priority")
     validation_rules = {
         "priority": lambda val: isinstance(val, bool)
     }
 
     def display(self):
+        """Требование 9: Переопределяется только display()."""
         status = "Срочный" if self.priority else "Обычный"
         return f"{self.name} - {self.phone} ({self.relationship}) [{status}]"
 
     def summary(self):
+        """Требование 9, 10: Переопределяется только summary()."""
         return f"Экстренный: {self.name} ({self.relationship})"
 
 
 class FamilyContact(Contact):
+    """Требование 14: Семейный контакт (дополнительный тип)."""
     extra_fields = ("family_role",)
     validation_rules = {
         "family_role": lambda val: isinstance(val, str) and len(val.strip()) > 0
     }
 
     def display(self):
+        """Требование 9: Переопределяется только display()."""
         return f"{self.name} - {self.phone} Роль в семье: {self.family_role}"
 
     def summary(self):
+        """Требование 9, 10: Переопределяется только summary()."""
         return f"Семья: {self.name} ({self.family_role})"
 
 
@@ -151,11 +166,11 @@ CONTACT_REGISTRY = {
 
 
 # ==========================================
-# ТРЕБОВАНИЯ 6 И 12: ОПЕРАЦИИ БЕЗ ПРОВЕРОК ТИПОВ
+# ОПЕРАЦИИ (ПОЛИМОРФИЗМ БЕЗ ПРОВЕРОК ТИПОВ)
 # ==========================================
 
 def print_all(contacts_list):
-    """Вызывает только contact.display() без isinstance/type проверок[cite: 8, 12]."""
+    """Требование 6 и 8: Вызывает display() у каждого объекта."""
     total_count = len(contacts_list)
     print(f"\n--- Общее количество контактов: {total_count} ---")
     if not contacts_list:
@@ -168,7 +183,7 @@ def print_all(contacts_list):
 
 
 def search(contacts_list, text):
-    """Вызывает только contact.matches(text) без проверок типов[cite: 8, 12]."""
+    """Требование 6 и 8: Вызывает matches(text) у каждого объекта."""
     results = []
     for contact in contacts_list:
         if contact.matches(text):
@@ -177,7 +192,7 @@ def search(contacts_list, text):
 
 
 def show_menu(contacts_list):
-    """Меню вызывает только contact.summary() одинаковым способом[cite: 10, 12]."""
+    """Требование 8 и 10: Меню вызывает summary() одинаковым способом."""
     print(f"\n--- МЕНЮ КНИГИ КОНТАКТОВ (Всего: {len(contacts_list)}) ---")
     if not contacts_list:
         print("Список пуст.")
@@ -188,7 +203,7 @@ def show_menu(contacts_list):
 
 
 # ==========================================
-# ДОПОЛНИТЕЛЬНЫЕ ИНТЕРФЕЙСНЫЕ ФУНКЦИИ
+# ИНТЕРФЕЙС И ВСП. ФУНКЦИИ
 # ==========================================
 
 def validate_phone(phone):
@@ -234,8 +249,9 @@ def add_contact():
             else:
                 kwargs[field] = val
 
+        # Создание объекта с использованием единого конструктора и extra_fields
         new_contact = type_info["cls"](name, phone, **kwargs)
-        new_contact.validate()  # Использование полиморфного validate()[cite: 12]
+        new_contact.validate()
         contacts.append(new_contact)
         print(f"Контакт '{name}' успешно добавлен!")
     except ValueError as e:
@@ -282,7 +298,6 @@ def update_contact():
         else:
             print("Ошибка: неверный формат телефона, старый сохранен.")
 
-    # Динамическое обновление полей через атрибуты (без ветвления по типу)
     for field in target.extra_fields:
         current_val = getattr(target, field)
         new_val = input(f"Новое значение для '{field}' [{current_val}]: ").strip()
@@ -382,4 +397,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main()1
+    
