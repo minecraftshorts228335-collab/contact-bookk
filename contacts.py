@@ -1,33 +1,31 @@
 import json
 import os
 
-# Требование 7: Хранение всех объектов напрямую в одной смешанной коллекции
+# Один смешанный список контактов (Требование 7)
 contacts = []
 
 
 # ==========================================
-# БАЗОВЫЙ И ДОЧЕРНИЕ КЛАССЫ КОНТАКТОВ
+# КЛАССЫ И ИНТЕРФЕЙС (Требования 1, 3, 4, 5)
 # ==========================================
 
 class Contact:
-    """Требование 2 и 4: Базовый класс, объединяющий модель контактов."""
     extra_fields = ()
     validation_rules = {}
 
     def __init__(self, name, phone, **kwargs):
         self.name = name
         self.phone = phone
-        # Требование 9: Единый конструктор принимает общие и специфичные поля через kwargs
         for field in self.extra_fields:
             setattr(self, field, kwargs.get(field))
 
     def matches(self, text):
-        """Требование 8: Общая логика поиска в базовом классе."""
+        """Общая логика поиска в базовом классе[cite: 4, 8]."""
         text_lower = text.lower()
         return text_lower in self.name.lower() or text_lower in str(self.phone).lower()
 
     def validate(self):
-        """Требование 11: Общий алгоритм проверки."""
+        """Общий алгоритм валидации[cite: 11]."""
         for field, rule in self.validation_rules.items():
             value = getattr(self, field, None)
             if not rule(value):
@@ -35,15 +33,13 @@ class Contact:
         return True
 
     def display(self):
-        """Базовое полное представление."""
         return f"{self.name} - {self.phone}"
 
     def summary(self):
-        """Требование 10: Короткая строка для меню."""
+        """Требование 10: Возвращает одну строку короткой сводки[cite: 10]."""
         return f"{self.name} ({self.phone})"
 
     def to_dict(self):
-        """Сохранение в словарь для JSON."""
         data = {
             "type": self.__class__.__name__,
             "name": self.name,
@@ -55,7 +51,6 @@ class Contact:
 
     @classmethod
     def from_dict(cls, data):
-        """Загрузка объекта из словаря."""
         c_type = data.get("type", "Contact")
         name = data.get("name", "")
         phone = data.get("phone", "")
@@ -76,64 +71,46 @@ class Contact:
 
 
 class PersonalContact(Contact):
-    """Требование 3 и 9: Личный контакт (переопределяет только display и summary)."""
     extra_fields = ("birthday",)
     validation_rules = {
         "birthday": lambda val: isinstance(val, str) and len(val.strip()) > 0
     }
 
     def display(self):
-        """Требование 9: Переопределение полного представления."""
         return f"{self.name} - {self.phone} ДР: {self.birthday}"
 
     def summary(self):
-        """Требование 9, 10: Переопределение короткой строки для меню."""
+        """Требование 10: Возвращает строку сводки для личного контакта[cite: 10]."""
         return f"Личный: {self.name} (ДР: {self.birthday})"
 
 
 class WorkContact(Contact):
-    """Требование 3 и 9: Рабочий контакт."""
     extra_fields = ("company", "job_title")
     validation_rules = {
         "company": lambda val: isinstance(val, str) and len(val.strip()) > 0
     }
 
     def display(self):
-        """Требование 9: Переопределение полного представления."""
         return f"{self.name} - {self.phone} | {self.company}, {self.job_title}"
 
     def summary(self):
-        """Требование 9, 10: Переопределение короткой строки для меню."""
+        """Требование 10: Возвращает строку сводки для рабочего контакта[cite: 10]."""
         return f"Рабочий: {self.name} ({self.company})"
 
 
 class EmergencyContact(Contact):
-    """Требование 3 и 9: Экстренный контакт."""
     extra_fields = ("relationship", "priority")
     validation_rules = {
         "priority": lambda val: isinstance(val, bool)
     }
 
     def display(self):
-        """Требование 9: Переопределение полного представления."""
         status = "Срочный" if self.priority else "Обычный"
         return f"{self.name} - {self.phone} ({self.relationship}) [{status}]"
 
     def summary(self):
-        """Требование 9, 10: Переопределение короткой строки для меню."""
+        """Требование 10: Возвращает строку сводки для экстренного контакта[cite: 10]."""
         return f"Экстренный: {self.name} ({self.relationship})"
-
-
-# ==========================================
-# ФУНКЦИИ ВАЛИДАЦИИ ТЕЛЕФОНА
-# ==========================================
-
-def validate_phone(phone):
-    digits = "".join(filter(str.isdigit, phone))
-    if len(digits) < 7:
-        return False
-    allowed_chars = set("0123456789+ -()")
-    return all(char in allowed_chars for char in phone)
 
 
 # ==========================================
@@ -141,7 +118,7 @@ def validate_phone(phone):
 # ==========================================
 
 def print_all(contacts_list):
-    """Требование 8: Вызывает одинаковый метод display() у каждого объекта."""
+    """Требование 8: Вызывает display() у каждого объекта без проверки типа[cite: 8]."""
     total_count = len(contacts_list)
     print(f"\n--- Общее количество контактов: {total_count} ---")
     if not contacts_list:
@@ -154,7 +131,7 @@ def print_all(contacts_list):
 
 
 def search(contacts_list, text):
-    """Требование 8: Вызывает matches(text) у каждого объекта и возвращает все совпадения."""
+    """Требование 8: Вызывает matches(text) у каждого объекта и возвращает все совпадения без проверки типа[cite: 8]."""
     results = []
     for contact in contacts_list:
         if contact.matches(text):
@@ -162,19 +139,33 @@ def search(contacts_list, text):
     return results
 
 
+# ==========================================
+# ТРЕБОВАНИЕ 10: МЕНЮ ВЫЗЫВАЕТ summary()
+# ==========================================
+
 def show_menu(contacts_list):
-    """Требование 10: Меню вызывает summary() одинаковым способом для всех контактов."""
-    print(f"\n--- МЕНЮ КОНТАКТОВ (Всего: {len(contacts_list)}) ---")
+    """Требование 10: Меню вызывает summary() одинаковым способом для всех контактов[cite: 10]."""
+    print(f"\n--- МЕНЮ КНИГИ КОНТАКТОВ (Всего: {len(contacts_list)}) ---")
     if not contacts_list:
         print("Список пуст.")
         return
+
+    # Меню вызывает summary() одним и тем же способом, без выбора формата по типу[cite: 10]
     for number, contact in enumerate(contacts_list, start=1):
         print(f"{number}. {contact.summary()}")
 
 
 # ==========================================
-# ОСНОВНЫЕ ОПЕРАЦИИ ИНТЕРФЕЙСА
+# ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ И ИНТЕРФЕЙС
 # ==========================================
+
+def validate_phone(phone):
+    digits = "".join(filter(str.isdigit, phone))
+    if len(digits) < 7:
+        return False
+    allowed_chars = set("0123456789+ -()")
+    return all(char in allowed_chars for char in phone)
+
 
 def add_contact():
     print("\nВыберите тип контакта:")
@@ -221,7 +212,7 @@ def add_contact():
 
 def handle_search():
     query = input("Введите текст для поиска: ").strip()
-    matched = search(contacts, query)
+    matched = search(contacts, query)  # Использует полиморфную функцию поиска (Требование 8)[cite: 8]
 
     print(f"\n--- Результаты поиска по запросу '{query}' ---")
     if matched:
@@ -294,10 +285,6 @@ def delete_contact():
         print("Удаление отменено.")
 
 
-# ==========================================
-# РАБОТА С ФАЙЛАМИ JSON
-# ==========================================
-
 def save_to_json(filename="contacts.json"):
     try:
         data = [c.to_dict() for c in contacts]
@@ -322,17 +309,13 @@ def load_from_json(filename="contacts.json"):
     except Exception as e:
         print(f"Ошибка загрузки: {e}")
 
-# ==========================================
-
-# ГЛАВНОЕ МЕНЮ
-# ==========================================
 
 def main():
     load_from_json()
 
     while True:
         print("\n=== КНИГА КОНТАКТОВ ===")
-        print("1. Показать список контактов (print_all)")
+        print("1. Показать полный список (print_all)")
         print("2. Показать меню (summary)")
         print("3. Добавить контакт")
         print("4. Найти контакт (search)")
@@ -344,13 +327,13 @@ def main():
         choice = input("Выберите пункт меню: ").strip()
 
         if choice == "1":
-            print_all(contacts)  # Соответствует требованию 6 и 8
+            print_all(contacts)  # Соответствует Требованию 8[cite: 8]
         elif choice == "2":
-            show_menu(contacts)  # Соответствует требованию 8 и 10
+            show_menu(contacts)  # Соответствует Требованию 10[cite: 10]
         elif choice == "3":
             add_contact()
         elif choice == "4":
-            handle_search()  # Использует search(contacts, text)
+            handle_search()  # Соответствует Требованию 8[cite: 8]
         elif choice == "5":
             update_contact()
         elif choice == "6":
