@@ -27,8 +27,7 @@ class Contact:
         return text_lower in self.name.lower() or text_lower in str(self.phone).lower()
 
     def validate(self):
-        """Требование 11: Общий алгоритм проверки данных без ветвления по типам.
-        Перебирает правила validation_rules и проверяет атрибуты[cite: 11]."""
+        """Требование 11: Общий алгоритм проверки данных без ветвления по типам[cite: 11]."""
         for field, rule in self.validation_rules.items():
             value = getattr(self, field, None)
             if not rule(value):
@@ -78,67 +77,67 @@ class Contact:
 
 
 class PersonalContact(Contact):
-    """Требование 3, 5: Личный контакт с собственным полем birthday[cite: 3, 5]."""
+    """Личный контакт с полем birthday (Требования 3, 5, 6)[cite: 3, 5, 6]."""
     extra_fields = ("birthday",)
     validation_rules = {
         "birthday": lambda val: isinstance(val, str) and len(val.strip()) > 0
     }
 
     def display(self):
-        """Требование 5, 6: Своё отображение с сохранением сигнатуры[cite: 5, 6]."""
+        """Своё отображение для личного контакта[cite: 6]."""
         return f"{self.name} - {self.phone} ДР: {self.birthday}"
 
     def summary(self):
-        """Требование 5, 10: Краткая сводка[cite: 5, 10]."""
+        """Краткая сводка для меню[cite: 10]."""
         return f"Личный: {self.name} (ДР: {self.birthday})"
 
 
 class WorkContact(Contact):
-    """Требование 3, 5: Рабочий контакт с полями company и job_title[cite: 3, 5]."""
+    """Рабочий контакт с полями company и job_title (Требования 3, 5, 6)[cite: 3, 5, 6]."""
     extra_fields = ("company", "job_title")
     validation_rules = {
         "company": lambda val: isinstance(val, str) and len(val.strip()) > 0
     }
 
     def display(self):
-        """Требование 5, 6: Своё отображение с сохранением сигнатуры[cite: 5, 6]."""
+        """Своё отображение для рабочего контакта[cite: 6]."""
         return f"{self.name} - {self.phone} | {self.company}, {self.job_title}"
 
     def summary(self):
-        """Требование 5, 10: Краткая сводка[cite: 5, 10]."""
+        """Краткая сводка для меню[cite: 10]."""
         return f"Рабочий: {self.name} ({self.company})"
 
 
 class EmergencyContact(Contact):
-    """Требование 3, 5: Экстренный контакт с полями relationship и priority[cite: 3, 5]."""
+    """Экстренный контакт с полями relationship и priority (Требования 3, 5, 6)[cite: 3, 5, 6]."""
     extra_fields = ("relationship", "priority")
     validation_rules = {
         "priority": lambda val: isinstance(val, bool)
     }
 
     def display(self):
-        """Требование 5, 6: Своё отображение с сохранением сигнатуры[cite: 5, 6]."""
+        """Своё отображение для экстренного контакта[cite: 6]."""
         status = "Срочный" if self.priority else "Обычный"
         return f"{self.name} - {self.phone} ({self.relationship}) [{status}]"
 
     def summary(self):
-        """Требование 5, 10: Краткая сводка[cite: 5, 10]."""
+        """Краткая сводка для меню[cite: 10]."""
         return f"Экстренный: {self.name} ({self.relationship})"
 
 
 class FamilyContact(Contact):
-    """Требование 14: Семейный контакт с собственным полем family_role[cite: 17]."""
+    """Семейный контакт (дополнительный тип по Требованию 14)[cite: 17]."""
     extra_fields = ("family_role",)
     validation_rules = {
         "family_role": lambda val: isinstance(val, str) and len(val.strip()) > 0
     }
 
     def display(self):
-        """Требование 5: Своё отображение[cite: 5]."""
+        """Своё отображение для семейного контакта."""
         return f"{self.name} - {self.phone} Роль в семье: {self.family_role}"
 
     def summary(self):
-        """Требование 5: Краткая сводка[cite: 5]."""
+        """Краткая сводка для меню."""
         return f"Семья: {self.name} ({self.family_role})"
 
 
@@ -156,7 +155,33 @@ def validate_phone(phone):
 
 
 # ==========================================
-# ПОЛИМОРФНЫЕ ОПЕРАЦИИ (БЕЗ ПРОВЕРОК ТИПОВ)
+# ТРЕБОВАНИЕ 6: ОПЕРАЦИИ НЕ ЗНАЮТ ТИПОВ
+# ==========================================
+
+def print_all(contacts_list):
+    """Вызывает одинаковый метод display() у каждого объекта без проверок типов[cite: 8]."""
+    total_count = len(contacts_list)
+    print(f"\n--- Общее количество контактов: {total_count} ---")
+    if not contacts_list:
+        print("Список контактов пуст.")
+        return
+
+    for index, contact in enumerate(contacts_list, start=1):
+        print(f"{index}. {contact.display()}")
+    print("-" * 45)
+
+
+def search(contacts_list, text):
+    """Вызывает matches(text) у каждого объекта и возвращает все совпадения без проверок типов[cite: 8]."""
+    results = []
+    for contact in contacts_list:
+        if contact.matches(text):
+            results.append(contact)
+    return results
+
+
+# ==========================================
+# ДОПОЛНИТЕЛЬНЫЕ ОПЕРАЦИИ (МЕНЮ И РАБОТА С ДАННЫМИ)
 # ==========================================
 
 def add_contact():
@@ -201,7 +226,7 @@ def add_contact():
         else:
             new_contact = Contact(name, phone)
 
-        # Требование 11: Проверка данных через общий унаследованный метод validate() без проверок типов[cite: 11]
+        # Проверка данных через общий унаследованный метод validate() без проверок типов[cite: 11]
         new_contact.validate()
         contacts.append(new_contact)
         print(f"Контакт '{name}' успешно добавлен!")
@@ -209,36 +234,21 @@ def add_contact():
         print(f"Ошибка валидации: {e}")
 
 
-def print_all_contacts(current_contacts=contacts):
-    """Вывод списка контактов через полиморфный вызов display() (Требования 5, 6, 8)[cite: 5, 6, 8]."""
-    total_count = len(current_contacts)
-    print(f"\n--- Общее количество контактов: {total_count} ---")
-    if not current_contacts:
-        print("Список контактов пуст.")
-        return
-
-    for index, contact in enumerate(current_contacts, start=1):
-        print(f"{index}. {contact.display()}")
-    print("-" * 45)
-
-
-def search_contacts(current_contacts=contacts):
-    """Поиск контактов с помощью полиморфного вызова matches() (Требования 5, 8)[cite: 5, 8]."""
+def handle_search():
+    """Интерфейс поиска с использованием универсальной функции search()."""
     query = input("Введите текст для поиска: ").strip()
-    found = False
+    matched_contacts = search(contacts, query)
 
     print(f"\n--- Результаты поиска по запросу '{query}' ---")
-    for contact in current_contacts:
-        if contact.matches(query):
+    if matched_contacts:
+        for contact in matched_contacts:
             print(f"- {contact.display()}")
-            found = True
-
-    if not found:
+    else:
         print("Ничего не найдено.")
 
 
 def show_menu():
-    """Отображение краткой сводки меню через summary() (Требования 5, 8, 10)[cite: 5, 8, 10]."""
+    """Отображение краткой сводки меню через summary() (Требование 10)[cite: 10]."""
     print(f"\n--- КНИГА КОНТАКТОВ (Всего: {len(contacts)}) ---")
     for number, contact in enumerate(contacts, start=1):
         print(f"{number}. {contact.summary()}")
@@ -273,7 +283,6 @@ def update_contact():
         else:
             print("Ошибка: неверный формат телефона, старый сохранен.")
 
-    # Динамическое обновление специфичных полей
     for field in target.extra_fields:
         current_val = getattr(target, field)
         new_val = input(f"Новое значение для '{field}' [{current_val}]: ").strip()
@@ -350,7 +359,7 @@ def main():
 
     while True:
         print("\n=== КНИГА КОНТАКТОВ ===")
-        print("1. Показать полный список контактов (print_all)")
+        print("1. Показать список контактов (print_all)")
         print("2. Показать меню (summary)")
         print("3. Добавить контакт")
         print("4. Найти контакт (search)")
@@ -362,13 +371,13 @@ def main():
         choice = input("Выберите пункт меню: ").strip()
 
         if choice == "1":
-            print_all_contacts()
+            print_all(contacts)  # Соответствует требованию 6
         elif choice == "2":
             show_menu()
         elif choice == "3":
             add_contact()
         elif choice == "4":
-            search_contacts()
+            handle_search()  # Использует search(contacts, text) под капотом
         elif choice == "5":
             update_contact()
         elif choice == "6":
@@ -384,4 +393,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main()1
