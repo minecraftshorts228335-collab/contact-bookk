@@ -142,3 +142,4 @@ CONTACT_REGISTRY = {
         "cls": FamilyContact,
         "fields": [("family_role", "Введите роль в семье: ")]
     }
+}
