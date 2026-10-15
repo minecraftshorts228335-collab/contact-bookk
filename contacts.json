@@ -18,5 +18,11 @@
         "type": "Contact",
         "name": "Женя",
         "phone": "7 123 456 78 90"
+    },
+    {
+        "type": "PersonalContact",
+        "name": "Тима",
+        "phone": "2 348 987 74 65",
+        "birthday": "4 июля"
     }
 ]
