@@ -1,12 +1,12 @@
 import json
 import os
 
-# Один смешанный список контактов (Требование 7)[cite: 7]
+# Хранение всех объектов в одном смешанном списке[cite: 7]
 contacts = []
 
 
 # ==========================================
-# КЛАССЫ И ИНТЕРФЕЙС (Требования 1, 3, 4, 5)
+# БАЗОВЫЙ И ДОЧЕРНИЕ КЛАССЫ КОНТАКТОВ
 # ==========================================
 
 class Contact:
@@ -25,7 +25,7 @@ class Contact:
         return text_lower in self.name.lower() or text_lower in str(self.phone).lower()
 
     def validate(self):
-        """Требование 11: Общий алгоритм проверки данных без ветвления по типам[cite: 11]."""
+        """Общий алгоритм проверки данных без проверки типов[cite: 11]."""
         for field, rule in self.validation_rules.items():
             value = getattr(self, field, None)
             if not rule(value):
@@ -33,10 +33,11 @@ class Contact:
         return True
 
     def display(self):
+        """Полное представление[cite: 5, 6]."""
         return f"{self.name} - {self.phone}"
 
     def summary(self):
-        """Требование 10: Возвращает одну строку короткой сводки[cite: 10]."""
+        """Короткая строка для меню[cite: 10]."""
         return f"{self.name} ({self.phone})"
 
     def to_dict(self):
@@ -117,7 +118,7 @@ class FamilyContact(Contact):
 
 
 # ==========================================
-# РЕЕСТР ТИПОВ КОНТАКТОВ (Фабрика для расширения)
+# РЕЕСТР ТИПОВ (ФАБРИКА)
 # ==========================================
 
 CONTACT_REGISTRY = {
@@ -150,11 +151,11 @@ CONTACT_REGISTRY = {
 
 
 # ==========================================
-# ТРЕБОВАНИЕ 8: ОПЕРАЦИИ БЕЗ ПРОВЕРОК ТИПОВ
+# ТРЕБОВАНИЯ 6 И 12: ОПЕРАЦИИ БЕЗ ПРОВЕРОК ТИПОВ
 # ==========================================
 
 def print_all(contacts_list):
-    """Вызывает display() у каждого объекта без проверки типа[cite: 8]."""
+    """Вызывает только contact.display() без isinstance/type проверок[cite: 8, 12]."""
     total_count = len(contacts_list)
     print(f"\n--- Общее количество контактов: {total_count} ---")
     if not contacts_list:
@@ -167,7 +168,7 @@ def print_all(contacts_list):
 
 
 def search(contacts_list, text):
-    """Вызывает matches(text) у каждого объекта и возвращает все совпадения[cite: 8]."""
+    """Вызывает только contact.matches(text) без проверок типов[cite: 8, 12]."""
     results = []
     for contact in contacts_list:
         if contact.matches(text):
@@ -175,12 +176,8 @@ def search(contacts_list, text):
     return results
 
 
-# ==========================================
-# ТРЕБОВАНИЕ 10 & 13: МЕНЮ И РЕЕСТР
-# ==========================================
-
 def show_menu(contacts_list):
-    """Меню вызывает summary() одинаковым способом для всех контактов[cite: 10]."""
+    """Меню вызывает только contact.summary() одинаковым способом[cite: 10, 12]."""
     print(f"\n--- МЕНЮ КНИГИ КОНТАКТОВ (Всего: {len(contacts_list)}) ---")
     if not contacts_list:
         print("Список пуст.")
@@ -190,8 +187,19 @@ def show_menu(contacts_list):
         print(f"{number}. {contact.summary()}")
 
 
+# ==========================================
+# ДОПОЛНИТЕЛЬНЫЕ ИНТЕРФЕЙСНЫЕ ФУНКЦИИ
+# ==========================================
+
+def validate_phone(phone):
+    digits = "".join(filter(str.isdigit, phone))
+    if len(digits) < 7:
+        return False
+    allowed_chars = set("0123456789+ -()")
+    return all(char in allowed_chars for char in phone)
+
+
 def add_contact():
-    """Динамическое добавление через реестр типов без жесткого ветвления[cite: 13]."""
     print("\nВыберите тип контакта:")
     keys = list(CONTACT_REGISTRY.keys())
     for i, key in enumerate(keys, start=1):
@@ -226,25 +234,12 @@ def add_contact():
             else:
                 kwargs[field] = val
 
-        # Создание объекта через фабричный класс из реестра
         new_contact = type_info["cls"](name, phone, **kwargs)
-        new_contact.validate()
+        new_contact.validate()  # Использование полиморфного validate()[cite: 12]
         contacts.append(new_contact)
         print(f"Контакт '{name}' успешно добавлен!")
     except ValueError as e:
         print(f"Ошибка валидации: {e}")
-
-
-# ==========================================
-# ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ И ИНТЕРФЕЙС
-# ==========================================
-
-def validate_phone(phone):
-    digits = "".join(filter(str.isdigit, phone))
-    if len(digits) < 7:
-        return False
-    allowed_chars = set("0123456789+ -()")
-    return all(char in allowed_chars for char in phone)
 
 
 def handle_search():
@@ -287,6 +282,7 @@ def update_contact():
         else:
             print("Ошибка: неверный формат телефона, старый сохранен.")
 
+    # Динамическое обновление полей через атрибуты (без ветвления по типу)
     for field in target.extra_fields:
         current_val = getattr(target, field)
         new_val = input(f"Новое значение для '{field}' [{current_val}]: ").strip()
