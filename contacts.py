@@ -1,61 +1,53 @@
-import csv
 import json
 import os
 
-# Глобальный список для хранения объектов контактов (один смешанный список)
+# Глобальный смешанный список для хранения объектов контактов всех типов
 contacts = []
 
 
 # ==========================================
-# БАЗОВЫЙ КЛАСС И ПОДКЛАССЫ КОНТАКТОВ
+# БАЗОВЫЙ И ДОЧЕРНИЕ КЛАССЫ КОНТАКТОВ
 # ==========================================
 
 class Contact:
-    """Базовый класс, описывающий общий контакт."""
+    """Базовый класс контакта (Требования 1 и 4)."""
     extra_fields = ()
     validation_rules = {}
 
-    def __init__(self, name, phones, email, **kwargs):
+    def __init__(self, name, phone, **kwargs):
         self.name = name
-        self.phones = phones if isinstance(phones, list) else [phones]
-        self.email = email
-
-        # Динамическое сохранение специфичных полей дочерних классов
+        self.phone = phone
+        # Сохранение специфичных полей через extra_fields
         for field in self.extra_fields:
             setattr(self, field, kwargs.get(field))
 
     def matches(self, text):
-        """Общая логика поиска по имени, номеру телефона или email."""
+        """Общая логика поиска по имени или номеру телефона."""
         text_lower = text.lower()
-        match_name = text_lower in self.name.lower()
-        match_phone = any(text_lower in p for p in self.phones)
-        match_email = text_lower in self.email.lower()
-        return match_name or match_phone or match_email
+        return text_lower in self.name.lower() or text_lower in str(self.phone).lower()
 
     def validate(self):
-        """Общий алгоритм валидации по правилам validation_rules без ветвления по типам."""
+        """Общий алгоритм проверки данных без ветвления по типам."""
         for field, rule in self.validation_rules.items():
-            value = getattr(self, field)
+            value = getattr(self, field, None)
             if not rule(value):
                 raise ValueError(f"Некорректное значение для поля '{field}': {value}")
         return True
 
     def display(self):
         """Полное представление контакта."""
-        phones_str = ", ".join(self.phones)
-        return f"{self.name} | Телефоны: [{phones_str}] | Email: {self.email}"
+        return f"{self.name} - {self.phone}"
 
     def summary(self):
         """Краткая строка для меню."""
-        return f"{self.name} ({', '.join(self.phones)})"
+        return f"{self.name} ({self.phone})"
 
     def to_dict(self):
         """Превращает объект в словарь для сохранения в JSON."""
         data = {
             "type": self.__class__.__name__,
             "name": self.name,
-            "phones": self.phones,
-            "email": self.email,
+            "phone": self.phone,
         }
         for field in self.extra_fields:
             data[field] = getattr(self, field, None)
@@ -63,74 +55,90 @@ class Contact:
 
     @classmethod
     def from_dict(cls, data):
-        """Фабричный метод для создания объекта нужного подкласса при загрузке."""
-        contact_type = data.get("type", "Contact")
+        """Создает объект нужного класса из словаря при загрузке."""
+        c_type = data.get("type", "Contact")
         name = data.get("name", "")
-        phones = data.get("phones", [data.get("phone", "")])
-        email = data.get("email", "")
+        phone = data.get("phone", "")
 
-        # Фабрика распределяет по типам в зависимости от сохраненного класса
-        if contact_type == "PersonalContact":
-            return PersonalContact(name, phones, email, birthday=data.get("birthday", ""))
-        elif contact_type == "WorkContact":
-            return WorkContact(name, phones, email, company=data.get("company", ""),
-                               job_title=data.get("job_title", ""))
-        elif contact_type == "EmergencyContact":
-            return EmergencyContact(name, phones, email, relationship=data.get("relationship", ""),
-                                    priority=data.get("priority", False))
-        else:
-            return Contact(name, phones, email)
+        subclasses = {
+            "PersonalContact": PersonalContact,
+            "WorkContact": WorkContact,
+            "EmergencyContact": EmergencyContact,
+            "FamilyContact": FamilyContact,
+            "Contact": Contact
+        }
+
+        target_cls = subclasses.get(c_type, Contact)
+        kwargs = {}
+        for field in target_cls.extra_fields:
+            if field in data:
+                kwargs[field] = data[field]
+        return target_cls(name, phone, **kwargs)
 
 
 class PersonalContact(Contact):
+    """Личный контакт с полем birthday."""
     extra_fields = ("birthday",)
     validation_rules = {
         "birthday": lambda val: isinstance(val, str) and len(val.strip()) > 0
     }
 
     def display(self):
-        phones_str = ", ".join(self.phones)
-        return f"[Личный] {self.name} | Тел: [{phones_str}] | Email: {self.email} | ДР: {self.birthday}"
+        return f"{self.name} - {self.phone} ДР: {self.birthday}"
 
     def summary(self):
         return f"Личный: {self.name} (ДР: {self.birthday})"
 
 
 class WorkContact(Contact):
+    """Рабочий контакт с полями company и job_title."""
     extra_fields = ("company", "job_title")
     validation_rules = {
         "company": lambda val: isinstance(val, str) and len(val.strip()) > 0
     }
 
     def display(self):
-        phones_str = ", ".join(self.phones)
-        return f"[Рабочий] {self.name} | Тел: [{phones_str}] | Email: {self.email} | {self.company} ({self.job_title})"
+        return f"{self.name} - {self.phone} | {self.company}, {self.job_title}"
 
     def summary(self):
-        return f"Рабочий: {self.name} — {self.company}"
+        return f"Рабочий: {self.name} ({self.company})"
 
 
 class EmergencyContact(Contact):
+    """Экстренный контакт с полями relationship и priority."""
     extra_fields = ("relationship", "priority")
     validation_rules = {
         "priority": lambda val: isinstance(val, bool)
     }
 
     def display(self):
-        phones_str = ", ".join(self.phones)
         status = "Срочный" if self.priority else "Обычный"
-        return f"[Экстренный] {self.name} | Тел: [{phones_str}] | Роль: {self.relationship} [{status}]"
+        return f"{self.name} - {self.phone} ({self.relationship}) [{status}]"
 
     def summary(self):
         return f"Экстренный: {self.name} ({self.relationship})"
 
 
+class FamilyContact(Contact):
+    """Семейный контакт (дополнительный тип) с полем family_role."""
+    extra_fields = ("family_role",)
+    validation_rules = {
+        "family_role": lambda val: isinstance(val, str) and len(val.strip()) > 0
+    }
+
+    def display(self):
+        return f"{self.name} - {self.phone} Роль в семье: {self.family_role}"
+
+    def summary(self):
+        return f"Семья: {self.name} ({self.family_role})"
+
+
 # ==========================================
-# ФУНКЦИИ ПРОВЕРКИ (ВАЛИДАЦИИ) ДАННЫХ
+# ФУНКЦИИ ВАЛИДАЦИИ ТЕЛЕФОНА
 # ==========================================
 
 def validate_phone(phone):
-    """Проверка корректности телефона (не менее 7 цифр и допустимые символы)."""
+    """Проверка корректности телефона."""
     digits = "".join(filter(str.isdigit, phone))
     if len(digits) < 7:
         return False
@@ -138,79 +146,54 @@ def validate_phone(phone):
     return all(char in allowed_chars for char in phone)
 
 
-def validate_email(email):
-    """Базовая проверка email (наличие '@' и точки в доменной части)."""
-    if "@" not in email:
-        return False
-    parts = email.split("@")
-    if len(parts) != 2 or not parts[0] or not parts[1]:
-        return False
-    return "." in parts[1]
-
-
 # ==========================================
-# ОСНОВНЫЕ ОПЕРАЦИИ С КОНТАКТАМИ (БЕЗ ПРОВЕРОК ТИПОВ)
+# ОСНОВНЫЕ ОПЕРАЦИИ (ПОЛИМОРФНЫЕ)
 # ==========================================
 
 def add_contact():
-    """Добавление нового контакта с выбором подтипа."""
+    """Добавление нового контакта любого типа в общий список."""
     print("\nВыберите тип контакта:")
-    print("1. Обычный / Базовый контакт")
+    print("1. Обычный контакт")
     print("2. Личный контакт (PersonalContact)")
     print("3. Рабочий контакт (WorkContact)")
     print("4. Экстренный контакт (EmergencyContact)")
+    print("5. Семейный контакт (FamilyContact)")
 
-    sub_choice = input("Ваш выбор (1-4): ").strip()
-
+    sub_choice = input("Ваш выбор (1-5): ").strip()
     name = input("Введите имя: ").strip()
 
-    # Проверка уникальности имени (без учета регистра)
+    # Проверка уникальности имени
     for contact in contacts:
         if contact.name.strip().lower() == name.lower():
             print(f"Ошибка: контакт с именем '{name}' уже существует.")
             return
 
-    # Ввод и проверка телефонов
-    phones_raw = input("Введите телефоны через запятую: ").strip()
-    split_phones = [p.strip() for p in phones_raw.split(",")]
-    valid_phones = []
-
-    for p in split_phones:
-        if p and validate_phone(p):
-            valid_phones.append(p)
-        else:
-            print(f"Пропущен некорректный телефон: {p}")
-
-    if not valid_phones:
-        print("Ошибка: у контакта должен быть хотя бы один корректный телефон.")
+    phone = input("Введите телефон: ").strip()
+    if not validate_phone(phone):
+        print("Ошибка: некорректный формат телефона.")
         return
 
-    # Ввод и проверка email
-    email = input("Введите email: ").strip()
-    if not validate_email(email):
-        print("Ошибка: некорректный формат email.")
-        return
-
-    # Сбор специфичных полей в зависимости от выбора
     try:
         if sub_choice == "2":
-            birthday = input("Введите дату рождения (например, 12.05): ").strip()
-            new_contact = PersonalContact(name, valid_phones, email, birthday=birthday)
+            birthday = input("Введите дату рождения: ").strip()
+            new_contact = PersonalContact(name, phone, birthday=birthday)
         elif sub_choice == "3":
             company = input("Введите компанию: ").strip()
             job_title = input("Введите должность: ").strip()
-            new_contact = WorkContact(name, valid_phones, email, company=company, job_title=job_title)
+            new_contact = WorkContact(name, phone, company=company, job_title=job_title)
         elif sub_choice == "4":
-            relationship = input("Введите кем приходится (например, сестра): ").strip()
+            relationship = input("Кем приходится: ").strip()
             priority_input = input("Высокий приоритет срочности? (да/нет): ").strip().lower()
             priority = priority_input in ("да", "д", "yes", "y")
-            new_contact = EmergencyContact(name, valid_phones, email, relationship=relationship, priority=priority)
+            new_contact = EmergencyContact(name, phone, relationship=relationship, priority=priority)
+        elif sub_choice == "5":
+            family_role = input("Введите роль в семье: ").strip()
+            new_contact = FamilyContact(name, phone, family_role=family_role)
         else:
-            new_contact = Contact(name, valid_phones, email)
+            new_contact = Contact(name, phone)
 
-        # Вызов общей валидации перед добавлением
+        # Проверка данных через общий метод validate()
         new_contact.validate()
-
         contacts.append(new_contact)
         print(f"Контакт '{name}' успешно добавлен!")
     except ValueError as e:
@@ -218,7 +201,7 @@ def add_contact():
 
 
 def show_all_contacts():
-    """Вывод всего списка контактов через полиморфный метод display()."""
+    """Вывод списка контактов через полиморфный метод display()."""
     total_count = len(contacts)
     print(f"\n--- Общее количество контактов: {total_count} ---")
     if not contacts:
@@ -226,19 +209,17 @@ def show_all_contacts():
         return
 
     for index, contact in enumerate(contacts, start=1):
-        # Используем общий полиморфный интерфейс display() без проверок типов
         print(f"{index}. {contact.display()}")
     print("-" * 45)
 
 
 def search_contact():
-    """Поиск контакта с использованием полиморфного метода matches()."""
-    query = input("Введите текст для поиска (имя, телефон, email): ").strip()
+    """Поиск контактов с помощью полиморфного метода matches()."""
+    query = input("Введите текст для поиска: ").strip()
     found = False
 
     print(f"\n--- Результаты поиска по запросу '{query}' ---")
     for contact in contacts:
-        # Вызов метода matches() для каждого объекта независимо от его класса
         if contact.matches(query):
             print(f"- {contact.display()}")
             found = True
@@ -247,10 +228,16 @@ def search_contact():
         print("Ничего не найдено.")
 
 
-def update_contact():
-    """Изменение существующего контакта по имени."""
-    name_query = input("Введите имя контакта, который нужно изменить: ").strip().lower()
+def show_menu():
+    """Отображение краткой сводки меню через summary()."""
+    print(f"\n--- КНИГА КОНТАКТОВ (Всего: {len(contacts)}) ---")
+    for number, contact in enumerate(contacts, start=1):
+        print(f"{number}. {contact.summary()}")
 
+
+def update_contact():
+    """Изменение существующего контакта."""
+    name_query = input("Введите имя контакта для изменения: ").strip().lower()
     matching = [c for c in contacts if name_query in c.name.lower()]
 
     if not matching:
@@ -258,99 +245,69 @@ def update_contact():
         return
 
     if len(matching) > 1:
-        print("\nНайдено несколько контактов:")
+        print("\nНайдено несколько контактов, уточните имя:")
         for i, c in enumerate(matching, start=1):
             print(f"{i}. {c.name}")
-        print("Уточните имя для изменения.")
         return
 
     target = matching[0]
     print(f"Найден контакт: {target.name}. Оставьте поле пустым, чтобы не менять.")
 
-    # 1. Изменение имени
     new_name = input(f"Новое имя [{target.name}]: ").strip()
     if new_name:
-        exists = any(c != target and c.name.strip().lower() == new_name.lower() for c in contacts)
-        if exists:
-            print(f"Ошибка: контакт с именем '{new_name}' уже существует. Имя не изменено.")
-        else:
-            target.name = new_name
+        target.name = new_name
 
-    # 2. Изменение телефонов
-    current_phones = ", ".join(target.phones)
-    new_phones_input = input(f"Новые телефоны через запятую [{current_phones}]: ").strip()
-    if new_phones_input:
-        split_phones = [p.strip() for p in new_phones_input.split(",")]
-        valid_new = [p for p in split_phones if validate_phone(p)]
-        if valid_new:
-            target.phones = valid_new
+    new_phone = input(f"Новый телефон [{target.phone}]: ").strip()
+    if new_phone:
+        if validate_phone(new_phone):
+            target.phone = new_phone
         else:
-            print("Ошибка: не передано ни одного корректного телефона, старые сохранены.")
+            print("Ошибка: неверный формат телефона, старый сохранен.")
 
-    # 3. Изменение email
-    new_email = input(f"Новый email [{target.email}]: ").strip()
-    if new_email:
-        if validate_email(new_email):
-            target.email = new_email
-        else:
-            print("Ошибка: неверный формат email, старый сохранен.")
-
-    # 4. Изменение специфичных полей в зависимости от доступных атрибутов объекта
-    if hasattr(target, "birthday"):
-        new_bday = input(f"Новая дата рождения [{target.birthday}]: ").strip()
-        if new_bday:
-            target.birthday = new_bday
-    if hasattr(target, "company"):
-        new_comp = input(f"Новая компания [{target.company}]: ").strip()
-        if new_comp:
-            target.company = new_comp
-    if hasattr(target, "job_title"):
-        new_job = input(f"Новая должность [{target.job_title}]: ").strip()
-        if new_job:
-            target.job_title = new_job
-    if hasattr(target, "relationship"):
-        new_rel = input(f"Новые отношения [{target.relationship}]: ").strip()
-        if new_rel:
-            target.relationship = new_rel
+    # Динамическое обновление специфичных полей
+    for field in target.extra_fields:
+        current_val = getattr(target, field)
+        new_val = input(f"Новое значение для '{field}' [{current_val}]: ").strip()
+        if new_val:
+            # Превращаем priority обратно в boolean, если поле логическое
+            if field == "priority":
+                setattr(target, field, new_val.lower() in ("да", "д", "yes", "y"))
+            else:
+                setattr(target, field, new_val)
 
     print(f"Контакт '{target.name}' успешно обновлен!")
 
 
 def delete_contact():
-    """Удаление контакта по имени с подтверждением."""
-    name_query = input("Введите имя контакта, который нужно удалить: ").strip().lower()
-
+    """Удаление контакта по имени."""
+    name_query = input("Введите имя контакта для удаления: ").strip().lower()
     matching = [c for c in contacts if name_query in c.name.lower()]
 
     if not matching:
-        print(f"Контакты по запросу '{name_query}' не найдены.")
+        print(f"Контакты не найдены.")
         return
 
     if len(matching) > 1:
-        print("\nНайдено несколько контактов:")
+        print("\nНайдено несколько контактов, уточните имя:")
         for i, c in enumerate(matching, start=1):
             print(f"{i}. {c.name}")
-        print("Уточните имя для удаления.")
         return
 
     target = matching[0]
-    print(f"Найден контакт: {target.summary()}")
-
     confirm = input(f"Вы уверены, что хотите удалить '{target.name}'? (да/нет): ").strip().lower()
-
     if confirm in ("да", "д", "yes", "y"):
         contacts.remove(target)
-        print(f"Контакт '{target.name}' успешно удален.")
+        print(f"Контакт '{target.name}' удален.")
     else:
         print("Удаление отменено.")
 
 
 # ==========================================
-# ФУНКЦИИ РАБОТЫ С ФАЙЛАМИ
+# РАБОТА С ФАЙЛАМИ JSON
 # ==========================================
 
 def save_to_json(filename="contacts.json"):
-    """Сохранение объектов контактов в JSON."""
+    """Сохранение контактов в файл."""
     try:
         data = [c.to_dict() for c in contacts]
         with open(filename, "w", encoding="utf-8") as f:
@@ -361,10 +318,9 @@ def save_to_json(filename="contacts.json"):
 
 
 def load_from_json(filename="contacts.json"):
-    """Загрузка контактов из JSON с восстановлением объектов нужных классов."""
+    """Загрузка контактов из файла."""
     global contacts
     if not os.path.exists(filename):
-        print(f"Файл '{filename}' не найден, начинаем с пустого списка.")
         return
 
     try:
@@ -373,52 +329,51 @@ def load_from_json(filename="contacts.json"):
             if isinstance(data, list):
                 contacts = [Contact.from_dict(item) for item in data]
                 print(f"Загружено записей из файла: {len(contacts)}")
-            else:
-                print("Ошибка: неверный формат данных в файле.")
-    except json.JSONDecodeError:
-        print("Ошибка: файл поврежден (некорректный JSON).")
     except Exception as e:
         print(f"Ошибка загрузки: {e}")
 
 
 # ==========================================
-# ГЛАВНОЕ МЕНЮ ПРОГРАММЫ
+# ГЛАВНОЕ МЕНЮ
 # ==========================================
 
 def main():
-    load_from_json()  # Автозагрузка при старте
+    load_from_json()
 
     while True:
         print("\n=== КНИГА КОНТАКТОВ ===")
-        print("1. Показать список контактов")
-        print("2. Добавить контакт")
-        print("3. Найти контакт")
-        print("4. Изменить контакт")
-        print("5. Удалить контакт")
-        print("6. Сохранить контакты в файл")
-        print("0. Выйти из программы")
+        print("1. Показать список контактов (полный вывод)")
+        print("2. Показать краткое меню (summary)")
+        print("3. Добавить контакт")
+        print("4. Найти контакт")
+        print("5. Изменить контакт")
+        print("6. Удалить контакт")
+        print("7. Сохранить в файл")
+        print("0. Выйти")
 
         choice = input("Выберите пункт меню: ").strip()
 
         if choice == "1":
             show_all_contacts()
         elif choice == "2":
-            add_contact()
+            show_menu()
         elif choice == "3":
-            search_contact()
+            add_contact()
         elif choice == "4":
-            update_contact()
+            search_contact()
         elif choice == "5":
-            delete_contact()
+            update_contact()
         elif choice == "6":
+            delete_contact()
+        elif choice == "7":
             save_to_json()
         elif choice == "0":
-            save_to_json()  # Автосохранение перед выходом
+            save_to_json()
             print("До свидания!")
             break
         else:
-            print("Неверный выбор. Пожалуйста, введите число от 0 до 6.")
+            print("Неверный выбор. Введите число от 0 до 7.")
 
 
 if __name__ == "__main__":
-    main()1
+    main()
