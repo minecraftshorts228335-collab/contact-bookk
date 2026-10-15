@@ -1,7 +1,7 @@
 import json
 import os
 
-# Один смешанный список контактов (Требование 7)
+# Один смешанный список контактов (Требование 7)[cite: 7]
 contacts = []
 
 
@@ -25,7 +25,7 @@ class Contact:
         return text_lower in self.name.lower() or text_lower in str(self.phone).lower()
 
     def validate(self):
-        """Общий алгоритм валидации[cite: 11]."""
+        """Требование 11: Общий алгоритм проверки данных без ветвления по типам[cite: 11]."""
         for field, rule in self.validation_rules.items():
             value = getattr(self, field, None)
             if not rule(value):
@@ -55,14 +55,7 @@ class Contact:
         name = data.get("name", "")
         phone = data.get("phone", "")
 
-        subclasses = {
-            "PersonalContact": PersonalContact,
-            "WorkContact": WorkContact,
-            "EmergencyContact": EmergencyContact,
-            "Contact": Contact
-        }
-
-        target_cls = subclasses.get(c_type, Contact)
+        target_cls = CONTACT_REGISTRY.get(c_type, {}).get("cls", Contact)
         kwargs = {}
         for field in target_cls.extra_fields:
             if field in data:
@@ -80,7 +73,6 @@ class PersonalContact(Contact):
         return f"{self.name} - {self.phone} ДР: {self.birthday}"
 
     def summary(self):
-        """Требование 10: Возвращает строку сводки для личного контакта[cite: 10]."""
         return f"Личный: {self.name} (ДР: {self.birthday})"
 
 
@@ -94,7 +86,6 @@ class WorkContact(Contact):
         return f"{self.name} - {self.phone} | {self.company}, {self.job_title}"
 
     def summary(self):
-        """Требование 10: Возвращает строку сводки для рабочего контакта[cite: 10]."""
         return f"Рабочий: {self.name} ({self.company})"
 
 
@@ -109,8 +100,53 @@ class EmergencyContact(Contact):
         return f"{self.name} - {self.phone} ({self.relationship}) [{status}]"
 
     def summary(self):
-        """Требование 10: Возвращает строку сводки для экстренного контакта[cite: 10]."""
         return f"Экстренный: {self.name} ({self.relationship})"
+
+
+class FamilyContact(Contact):
+    extra_fields = ("family_role",)
+    validation_rules = {
+        "family_role": lambda val: isinstance(val, str) and len(val.strip()) > 0
+    }
+
+    def display(self):
+        return f"{self.name} - {self.phone} Роль в семье: {self.family_role}"
+
+    def summary(self):
+        return f"Семья: {self.name} ({self.family_role})"
+
+
+# ==========================================
+# РЕЕСТР ТИПОВ КОНТАКТОВ (Фабрика для расширения)
+# ==========================================
+
+CONTACT_REGISTRY = {
+    "Contact": {
+        "name": "Обычный контакт",
+        "cls": Contact,
+        "fields": []
+    },
+    "PersonalContact": {
+        "name": "Личный контакт (PersonalContact)",
+        "cls": PersonalContact,
+        "fields": [("birthday", "Введите дату рождения: ")]
+    },
+    "WorkContact": {
+        "name": "Рабочий контакт (WorkContact)",
+        "cls": WorkContact,
+        "fields": [("company", "Введите компанию: "), ("job_title", "Введите должность: ")]
+    },
+    "EmergencyContact": {
+        "name": "Экстренный контакт (EmergencyContact)",
+        "cls": EmergencyContact,
+        "fields": [("relationship", "Кем приходится: "), ("priority", "Высокий приоритет срочности? (да/нет): ")]
+    },
+    "FamilyContact": {
+        "name": "Семейный контакт (FamilyContact)",
+        "cls": FamilyContact,
+        "fields": [("family_role", "Введите роль в семье: ")]
+    }
+}
 
 
 # ==========================================
@@ -118,7 +154,7 @@ class EmergencyContact(Contact):
 # ==========================================
 
 def print_all(contacts_list):
-    """Требование 8: Вызывает display() у каждого объекта без проверки типа[cite: 8]."""
+    """Вызывает display() у каждого объекта без проверки типа[cite: 8]."""
     total_count = len(contacts_list)
     print(f"\n--- Общее количество контактов: {total_count} ---")
     if not contacts_list:
@@ -131,7 +167,7 @@ def print_all(contacts_list):
 
 
 def search(contacts_list, text):
-    """Требование 8: Вызывает matches(text) у каждого объекта и возвращает все совпадения без проверки типа[cite: 8]."""
+    """Вызывает matches(text) у каждого объекта и возвращает все совпадения[cite: 8]."""
     results = []
     for contact in contacts_list:
         if contact.matches(text):
@@ -140,19 +176,63 @@ def search(contacts_list, text):
 
 
 # ==========================================
-# ТРЕБОВАНИЕ 10: МЕНЮ ВЫЗЫВАЕТ summary()
+# ТРЕБОВАНИЕ 10 & 13: МЕНЮ И РЕЕСТР
 # ==========================================
 
 def show_menu(contacts_list):
-    """Требование 10: Меню вызывает summary() одинаковым способом для всех контактов[cite: 10]."""
+    """Меню вызывает summary() одинаковым способом для всех контактов[cite: 10]."""
     print(f"\n--- МЕНЮ КНИГИ КОНТАКТОВ (Всего: {len(contacts_list)}) ---")
     if not contacts_list:
         print("Список пуст.")
         return
 
-    # Меню вызывает summary() одним и тем же способом, без выбора формата по типу[cite: 10]
     for number, contact in enumerate(contacts_list, start=1):
         print(f"{number}. {contact.summary()}")
+
+
+def add_contact():
+    """Динамическое добавление через реестр типов без жесткого ветвления[cite: 13]."""
+    print("\nВыберите тип контакта:")
+    keys = list(CONTACT_REGISTRY.keys())
+    for i, key in enumerate(keys, start=1):
+        print(f"{i}. {CONTACT_REGISTRY[key]['name']}")
+
+    choice_idx = input("Ваш выбор (номер): ").strip()
+    if not choice_idx.isdigit() or not (1 <= int(choice_idx) <= len(keys)):
+        print("Неверный выбор типа.")
+        return
+
+    selected_key = keys[int(choice_idx) - 1]
+    type_info = CONTACT_REGISTRY[selected_key]
+
+    name = input("Введите имя: ").strip()
+
+    for contact in contacts:
+        if contact.name.strip().lower() == name.lower():
+            print(f"Ошибка: контакт с именем '{name}' уже существует.")
+            return
+
+    phone = input("Введите телефон: ").strip()
+    if not validate_phone(phone):
+        print("Ошибка: некорректный формат телефона.")
+        return
+
+    try:
+        kwargs = {}
+        for field, prompt in type_info["fields"]:
+            val = input(prompt).strip()
+            if field == "priority":
+                kwargs[field] = val.lower() in ("да", "д", "yes", "y")
+            else:
+                kwargs[field] = val
+
+        # Создание объекта через фабричный класс из реестра
+        new_contact = type_info["cls"](name, phone, **kwargs)
+        new_contact.validate()
+        contacts.append(new_contact)
+        print(f"Контакт '{name}' успешно добавлен!")
+    except ValueError as e:
+        print(f"Ошибка валидации: {e}")
 
 
 # ==========================================
@@ -167,52 +247,9 @@ def validate_phone(phone):
     return all(char in allowed_chars for char in phone)
 
 
-def add_contact():
-    print("\nВыберите тип контакта:")
-    print("1. Обычный контакт")
-    print("2. Личный контакт (PersonalContact)")
-    print("3. Рабочий контакт (WorkContact)")
-    print("4. Экстренный контакт (EmergencyContact)")
-
-    sub_choice = input("Ваш выбор (1-4): ").strip()
-    name = input("Введите имя: ").strip()
-
-    for contact in contacts:
-        if contact.name.strip().lower() == name.lower():
-            print(f"Ошибка: контакт с именем '{name}' уже существует.")
-            return
-
-    phone = input("Введите телефон: ").strip()
-    if not validate_phone(phone):
-        print("Ошибка: некорректный формат телефона.")
-        return
-
-    try:
-        if sub_choice == "2":
-            birthday = input("Введите дату рождения: ").strip()
-            new_contact = PersonalContact(name, phone, birthday=birthday)
-        elif sub_choice == "3":
-            company = input("Введите компанию: ").strip()
-            job_title = input("Введите должность: ").strip()
-            new_contact = WorkContact(name, phone, company=company, job_title=job_title)
-        elif sub_choice == "4":
-            relationship = input("Кем приходится: ").strip()
-            priority_input = input("Высокий приоритет срочности? (да/нет): ").strip().lower()
-            priority = priority_input in ("да", "д", "yes", "y")
-            new_contact = EmergencyContact(name, phone, relationship=relationship, priority=priority)
-        else:
-            new_contact = Contact(name, phone)
-
-        new_contact.validate()
-        contacts.append(new_contact)
-        print(f"Контакт '{name}' успешно добавлен!")
-    except ValueError as e:
-        print(f"Ошибка валидации: {e}")
-
-
 def handle_search():
     query = input("Введите текст для поиска: ").strip()
-    matched = search(contacts, query)  # Использует полиморфную функцию поиска (Требование 8)[cite: 8]
+    matched = search(contacts, query)
 
     print(f"\n--- Результаты поиска по запросу '{query}' ---")
     if matched:
@@ -315,7 +352,7 @@ def main():
 
     while True:
         print("\n=== КНИГА КОНТАКТОВ ===")
-        print("1. Показать полный список (print_all)")
+        print("1. Показать список контактов (print_all)")
         print("2. Показать меню (summary)")
         print("3. Добавить контакт")
         print("4. Найти контакт (search)")
@@ -327,13 +364,13 @@ def main():
         choice = input("Выберите пункт меню: ").strip()
 
         if choice == "1":
-            print_all(contacts)  # Соответствует Требованию 8[cite: 8]
+            print_all(contacts)
         elif choice == "2":
-            show_menu(contacts)  # Соответствует Требованию 10[cite: 10]
+            show_menu(contacts)
         elif choice == "3":
             add_contact()
         elif choice == "4":
-            handle_search()  # Соответствует Требованию 8[cite: 8]
+            handle_search()
         elif choice == "5":
             update_contact()
         elif choice == "6":
