@@ -2,28 +2,52 @@
     {
         "type": "Contact",
         "name": "Анна Петрова",
-        "phone": ""
+        "phone": [
+            ""
+        ],
+        "is_favorite": false
     },
     {
         "type": "Contact",
         "name": "Евгений Пеннер",
-        "phone": ""
+        "phone": [
+            ""
+        ],
+        "is_favorite": false
     },
     {
         "type": "Contact",
         "name": "Женя",
-        "phone": "7 123 456 78 90"
+        "phone": [
+            "7 123 456 78 90"
+        ],
+        "is_favorite": false
     },
     {
         "type": "PersonalContact",
         "name": "Тима",
-        "phone": "2 348 987 74 65",
+        "phone": [
+            "2 348 987 74 65"
+        ],
+        "is_favorite": false,
         "birthday": "4 июля"
     },
     {
         "type": "FamilyContact",
         "name": "Лешка",
-        "phone": "7 777 228 12 34",
+        "phone": [
+            "7 777 228 12 34"
+        ],
+        "is_favorite": false,
         "family_role": "малой"
+    },
+    {
+        "type": "Contact",
+        "name": "Помидор",
+        "phone": [
+            "8 888 888 88 88",
+            "3 747 764 6745"
+        ],
+        "is_favorite": false
     }
 ]
