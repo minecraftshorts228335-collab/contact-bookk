@@ -11,11 +11,6 @@
     },
     {
         "type": "Contact",
-        "name": "Алексей",
-        "phone": ""
-    },
-    {
-        "type": "Contact",
         "name": "Женя",
         "phone": "7 123 456 78 90"
     },
@@ -24,5 +19,11 @@
         "name": "Тима",
         "phone": "2 348 987 74 65",
         "birthday": "4 июля"
+    },
+    {
+        "type": "FamilyContact",
+        "name": "Лешка",
+        "phone": "7 777 228 12 34",
+        "family_role": "малой"
     }
 ]
